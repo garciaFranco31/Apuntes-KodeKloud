@@ -93,3 +93,41 @@ sudo systemctl restart sshd
 - En algunos sistemas el servicio se llama `sshd`, en otros `ssh`. Verificar con `systemctl status sshd`.
 - `sshd -T` muestra la configuración efectiva ya parseada (útil para validar sin reiniciar dos veces).
 - Recordar repetir el procedimiento en los **3 servidores**: stapp01, stapp02 y stapp03.
+
+## Tarea 4: Grant Execute Permissions to xfusioncorp.sh
+
+### Requerimiento
+
+In a bid to automate backup processes, the xFusionCorp Industries sysadmin team has developed a new bash script named xfusioncorp.sh. While the script has been distributed to all necessary servers, it lacks executable permissions on one of the app servers within the Stratos Datacenter.
+
+Your task is to grant executable permissions to the `/tmp/xfusioncorp.sh` script on that app server. Additionally, ensure that all users have the capability to execute it.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+> **Ojo:** el servidor objetivo varía según el intento del lab. Ya nos tocó App Server 3 (`stapp03`, user `banner`) y App Server 1 (`stapp01`, user `tony`). Fijarse bien cuál pide la consigna.
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al app server indicado en la consigna
+ssh banner@stapp03        # o: ssh tony@stapp01
+
+# 2. Bajar privilegio a root (o usar sudo en cada comando)
+sudo su -
+
+# 3. Dar permisos de ejecución a todos los usuarios (dueño, grupo y otros)
+chmod 755 /tmp/xfusioncorp.sh # ya que el estado inicial del .sh en cuanto a permisos era: ---------- y necesitaba como resultado -rwxr-x-r-x
+
+# 4. Verificar los permisos
+ls -l /tmp/xfusioncorp.sh     # debe mostrar algo como: -rwxr-xr-x ... root root
+```
+
+### Notas / Troubleshooting
+
+- `chmod a+x` agrega el bit de ejecución a **todos** (`u`=dueño, `g`=grupo, `o`=otros; `a` = todos a la vez). Equivale a `chmod +x`.
+- Alternativa numérica: `chmod 755 /tmp/xfusioncorp.sh` (rwxr-xr-x), que es lo típico para scripts ejecutables por todos.
+- Si el archivo fuera de otro dueño y quisieras restringir, se usaría solo `u+x`, pero acá piden explícitamente que **todos** puedan ejecutarlo.
+- **Cuidado con `---x--x--x` (chmod 111):** aunque tiene la `x` para todos, los *scripts* también necesitan permiso de **lectura** para que bash pueda abrirlos e interpretarlos (un binario corre solo con `--x`, un script no → `Permission denied`). El estado final esperado es `-rwxr-xr-x`.
+- `a+x` es aditivo: solo agrega la `x` y conserva el resto de los bits. Desde el estado original `-rw-r--r--` (644) da justo 755, pero si el archivo ya estaba en `---x--x--x` (sin lectura), `+x` no recupera la `r`.
+- Por eso conviene usar modo absoluto `chmod 755`: fija los permisos finales sin importar el estado previo. Probado y funcionando para todos los usuarios.
+- Validar ejecutándolo como un usuario común: `/tmp/xfusioncorp.sh --help` o simplemente verificar con `ls -l` que las tres posiciones de ejecución estén en `x`.

@@ -131,3 +131,55 @@ ls -l /tmp/xfusioncorp.sh     # debe mostrar algo como: -rwxr-xr-x ... root root
 - `a+x` es aditivo: solo agrega la `x` y conserva el resto de los bits. Desde el estado original `-rw-r--r--` (644) da justo 755, pero si el archivo ya estaba en `---x--x--x` (sin lectura), `+x` no recupera la `r`.
 - Por eso conviene usar modo absoluto `chmod 755`: fija los permisos finales sin importar el estado previo. Probado y funcionando para todos los usuarios.
 - Validar ejecutándolo como un usuario común: `/tmp/xfusioncorp.sh --help` o simplemente verificar con `ls -l` que las tres posiciones de ejecución estén en `x`.
+
+## Tarea 5: Install SELinux Packages and Disable SELinux on App Server 2
+
+### Requerimiento
+
+Following a security audit, the xFusionCorp Industries security team has opted to enhance application and server security with SELinux. To initiate testing, the following requirements have been established for App Server 2 in the Stratos Datacenter:
+
+- Install the required SELinux packages.
+- Permanently disable SELinux for the time being; it will be re-enabled after necessary configuration changes.
+- No need to reboot the server, as a scheduled maintenance reboot is already planned for tonight.
+- Disregard the current status of SELinux via the command line; the final status after the reboot should be disabled.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH a App Server 2
+ssh steve@stapp02
+
+# 2. Bajar privilegio a root
+sudo su -
+
+# 3. Instalar los paquetes de SELinux
+yum install -y selinux-policy selinux-policy-targeted \
+               libselinux libselinux-utils \
+               policycoreutils policycoreutils-python \
+               setroubleshoot-server setools-console
+
+# 4. Deshabilitar SELinux permanentemente editando la config
+vi /etc/selinux/config
+
+#    Dejar la línea así:
+#      SELINUX=disabled
+#    (las otras líneas quedan: SELINUXTYPE=targeted)
+
+# 5. Verificar que quedó guardado el cambio
+grep SELINUX /etc/selinux/config     # debe mostrar: SELINUX=disabled
+```
+
+### Notas / Troubleshooting
+
+- La consigna dice explícitamente que **no hay que reiniciar** y que se ignore lo que muestre `getenforce` o `sestatus`: esos comandos reflejan el estado *actual en memoria*, que solo cambia tras el reboot. Lo que valida el lab es el archivo `/etc/selinux/config`.
+- Valores posibles de `SELINUX=` en `/etc/selinux/config`:
+  - **`enforcing`** — SELinux activo y **aplicando** las políticas: cualquier acceso no autorizado por la política se **bloquea** además de loguearse (en `/var/log/audit/audit.log`). Es el modo por defecto en RHEL/CentOS.
+  - **`permissive`** — SELinux está cargado pero en modo "solo observación": las violaciones a la política **no se bloquean**, solo se **registran** en los logs. Útil para diagnosticar qué reglas faltan antes de activarlo (se pueden convertir esos logs en reglas con `audit2allow`).
+  - **`disabled`** — SELinux completamente **apagado**: el kernel no carga ninguna política, no hay bloqueos ni registros SELinux, y solo rigen los permisos tradicionales de UNIX (DAC). Acá pide este valor.
+  - Regla práctica para cambiar entre estados: entre `enforcing` ↔ `permissive` se puede cambiar **en caliente** con `setenforce 1|0`; para entrar o salir de `disabled` siempre hace falta editar la config + **reboot**, porque el kernel carga/descarga todo el subsistema al arrancar.
+- No confundir con `setenforce 0` (pasa a permissive solo hasta el próximo reboot, no modifica el archivo) ni con `SELINUX=permissive`.
+- Si `yum install` dice "already installed", no pasa nada: los paquetes ya estaban, seguís igual.
+- **Ojo con `policycoreutils-python`:** en RHEL/CentOS 8+ el paquete se renombró a `policycoreutils-python-utils` (si yum dice "unable to find", es esa la razón). Verificar versión del SO con `cat /etc/os-release`.
+- Para re-habilitar más adelante: `SELINUX=enforcing` en la config + reboot. Ojo: al re-habilitar puede tardar en relabelar el filesystem.

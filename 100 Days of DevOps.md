@@ -179,6 +179,44 @@ grep SELINUX /etc/selinux/config     # debe mostrar: SELINUX=disabled
   - **`permissive`** — SELinux está cargado pero en modo "solo observación": las violaciones a la política **no se bloquean**, solo se **registran** en los logs. Útil para diagnosticar qué reglas faltan antes de activarlo (se pueden convertir esos logs en reglas con `audit2allow`).
   - **`disabled`** — SELinux completamente **apagado**: el kernel no carga ninguna política, no hay bloqueos ni registros SELinux, y solo rigen los permisos tradicionales de UNIX (DAC). Acá pide este valor.
   - Regla práctica para cambiar entre estados: entre `enforcing` ↔ `permissive` se puede cambiar **en caliente** con `setenforce 1|0`; para entrar o salir de `disabled` siempre hace falta editar la config + **reboot**, porque el kernel carga/descarga todo el subsistema al arrancar.
+
+## Tarea 6: Set Up Password-less SSH from Jump Host to All App Servers
+
+### Requerimiento
+
+The system admins team of xFusionCorp Industries has set up some scripts on jump host that run on regular intervals and perform operations on all app servers in Stratos Datacenter. To make these scripts work properly we need to make sure the `thor` user on jump host has password-less SSH access to all app servers through their respective sudo users (i.e. tony for app server 1).
+
+Based on the requirements, perform the following:
+- Set up password-less authentication from user `thor` on jump host to all app servers through their respective sudo users.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+### Resolución
+
+```bash
+# El desafío ya te deja logueado como thor en el jump host, no hace falta conectarte a él
+
+# 1. Generar par de claves SSH (si no existe ya)
+ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ""
+#  — -N "" = sin passphrase, para que sea 100% automático
+
+# 2. Copiar la clave pública a cada app server (pedirá la contraseña UNA vez)
+ssh-copy-id tony@stapp01    # password: Ir0nM@n
+ssh-copy-id steve@stapp02   # password: Am3ric@
+ssh-copy-id banner@stapp03  # password: BigGr33n
+
+# 3. Probar que cada conexión funciona sin contraseña
+ssh tony@stapp01             # debe entrar sin pedir password
+ssh steve@stapp02
+ssh banner@stapp03
+```
+
+### Notas / Troubleshooting
+
+- `ssh-copy-id` agrega la clave pública a `~/.ssh/authorized_keys` del servidor destino. Puedes verificarlo manualmente si lo necesitás: `cat ~/.ssh/authorized_keys` en el app server.
+- Si `ssh-keygen` dice que `id_rsa` ya existe, preguntará si quieres sobrescribir: `n` si ya tenías claves que usás, `s` si quieres empezar de cero.
+- `id_rsa` = clave privada, **jamás** compartirla. `id_rsa.pub` = clave pública, esa es la que se copia con `ssh-copy-id`.
+- `thor` es el usuario del **jump host**; `tony`, `steve`, `banner` son los usuarios con sudo en cada app server. La conexión va de thor → usuario del app server.
 - No confundir con `setenforce 0` (pasa a permissive solo hasta el próximo reboot, no modifica el archivo) ni con `SELINUX=permissive`.
 - Si `yum install` dice "already installed", no pasa nada: los paquetes ya estaban, seguís igual.
 - **Ojo con `policycoreutils-python`:** en RHEL/CentOS 8+ el paquete se renombró a `policycoreutils-python-utils` (si yum dice "unable to find", es esa la razón). Verificar versión del SO con `cat /etc/os-release`.

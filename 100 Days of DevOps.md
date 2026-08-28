@@ -221,3 +221,50 @@ ssh banner@stapp03
 - Si `yum install` dice "already installed", no pasa nada: los paquetes ya estaban, seguís igual.
 - **Ojo con `policycoreutils-python`:** en RHEL/CentOS 8+ el paquete se renombró a `policycoreutils-python-utils` (si yum dice "unable to find", es esa la razón). Verificar versión del SO con `cat /etc/os-release`.
 - Para re-habilitar más adelante: `SELINUX=enforcing` en la config + reboot. Ojo: al re-habilitar puede tardar en relabelar el filesystem.
+
+## Tarea 7: Install Ansible 4.8.0 on Jump Host (globally)
+
+### Requerimiento
+
+During the weekly meeting, the Nautilus DevOps team discussed about the automation and configuration management solutions that they want to implement. While considering several options, the team has decided to go with Ansible for now due to its simple setup and minimal pre-requisites. The team wanted to start testing using Ansible, so they have decided to use jump host as an Ansible controller to test different kind of tasks on rest of the servers.
+
+Your task:
+- Install `ansible` version **4.8.0** on Jump host using **pip3 only**.
+- Make sure the Ansible binary is available **globally** on this system, i.e. all users on this system are able to run Ansible commands.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+### Resolución
+
+```bash
+# El desafío ya te deja logueado como thor en el jump host
+
+# 1. Verificar si pip3 está disponible (o instalarlo primero)
+pip3 --version          # si no existe: yum install -y python3-pip
+
+# 2. Bajar a root para instalar de forma GLOBAL (no solo para thor)
+sudo su -
+
+# 3. Instalar ansible 4.8.0 con pip3 (la versión exacta con ==)
+pip3 install ansible==4.8.0
+
+# 4. Verificar la instalación
+ansible --version       # debe mostrar "ansible [core ...]" con la versión base y Python
+
+# 5. Probar que CUALQUIER usuario lo puede ejecutar (salir de root y probar con thor, etc.)
+exit
+ansible --version       # sigue funcionando
+```
+
+**Si pip3 no está instalado (instalar primero como root):**
+```bash
+yum install -y python3-pip
+```
+
+### Notas / Troubleshooting
+
+- **Importante:** la versión exacta se fija con `pip3 install ansible==4.8.0` (doble `=`). Sin `==`, pip3 instalaría la última disponible.
+- Para que sea **global**, hay que instalar como **root**; si se instala con `pip3 install --user`, el binario queda solo en `~/.local/bin` del usuario actual y nadie más podría correrlo.
+- La versión *core* que trae ansible 4.8.0 internamente será algo como `ansible-core 2.11.x` (ej. `ansible [core 2.11.14]`). Eso es normal, la versión de colección es la 4.8.0.
+- Documentación del comando: `pip install <paquete>` instala un paquete Python; `==version` pin de versión exáctica.
+- Si pip3 tira error de versión de Python (ansible 4 requiere Python >= 3.8), verificar con `python3 --version`; en jump hosts muy viejos (CentOS 7 / py3.6) habría que revisar la distro.

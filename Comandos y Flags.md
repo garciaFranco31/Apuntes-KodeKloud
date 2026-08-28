@@ -1,4 +1,4 @@
-# Resumen de Comandos y Flags — Tasks 2 a 6
+# Resumen de Comandos y Flags — 100 Days of DevOps
 
 ## Navegación y Conexión Remota
 
@@ -54,10 +54,22 @@
 
 | Comando | Flag | Descripción |
 |---|---|---|
-| `yum` | `install -y` | Instala paquetes en RHEL/CentOS. `-y` responde "sí" automáticamente a todo prompt. |
 | `getenforce` | — | Muestra el estado actual de SELinux en memoria: `Enforcing`, `Permissive` o `Disabled`. Solo cambia tras reboot. |
 | `sestatus` | — | Muestra estado detallado de SELinux: modo actual, config del archivo, tipo de política, etc. |
 | `setenforce 1` | — | Cambia SELinux a **Enforcing** en caliente (solo hasta el próximo reboot). `setenforce 0` cambia a **Permissive**. |
+
+## Gestión de Paquetes (Python / Ansible)
+
+| Comando | Flag | Descripción |
+|---|---|---|
+| `yum` | `install -y` | Instala paquetes en RHEL/CentOS. `-y` responde "sí" automáticamente a todo prompt. |
+| `yum install python3-pip` | — | Instala pip3 (gestor de paquetes de Python) si no viene con el sistema. |
+| `pip3` | `--version` | Muestra la versión de pip3 instalada (verificar que esté disponible). |
+| `pip3 install` | `ansible==4.8.0` | Instala un paquete Python. `==versión` fija una **versión exacta** (doble `=`); sin ella instalaría la última disponible. |
+| `pip3 install` | `--user` | Instala solo para el usuario actual (`~/.local/bin`). Evitar si se necesita que todos los usuarios puedan usar el binario. |
+| `python3 --version` | — | Muestra la versión de Python 3 del sistema. |
+| `ansible --version` | — | Muestra la versión de Ansible instalada y el entorno (Python, ruta, etc.). |
+| `exit` | — | Cierra la sesión actual (usado para volver de root a un usuario normal). |
 
 ## Paquetes de SELinux instalados (Task 5)
 

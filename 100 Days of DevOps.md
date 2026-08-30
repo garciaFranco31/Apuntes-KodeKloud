@@ -268,3 +268,85 @@ yum install -y python3-pip
 - La versión *core* que trae ansible 4.8.0 internamente será algo como `ansible-core 2.11.x` (ej. `ansible [core 2.11.14]`). Eso es normal, la versión de colección es la 4.8.0.
 - Documentación del comando: `pip install <paquete>` instala un paquete Python; `==version` pin de versión exáctica.
 - Si pip3 tira error de versión de Python (ansible 4 requiere Python >= 3.8), verificar con `python3 --version`; en jump hosts muy viejos (CentOS 7 / py3.6) habría que revisar la distro.
+
+## Tarea 8: Fix MariaDB Service on Database Server
+
+### Requerimiento
+
+There is a critical issue going on with the Nautilus application in Stratos DC. The production support team identified that the application is unable to connect to the database. After digging into the issue, the team found that `mariadb` service is down on the database server.
+
+Look into the issue and fix the same.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al DB server (stdb01, user peter)
+ssh peter@stdb01
+
+# 2. Bajar privilegio a root
+sudo su -
+
+# 3. Intentar levantar el servicio (falló -> ver Problemas Abajo)
+systemctl start mariadb
+
+# 4. Habilitarlo para que arranque con el sistema (arranque permanente)
+systemctl enable mariadb
+
+# 5. Confirmar que quedó activo y corriendo
+systemctl status mariadb      # "active (running)"
+systemctl is-enabled mariadb  # "enabled"
+```
+
+**Verificación alternativa (comprobar que la DB responde):**
+```bash
+mysql -u root -p              # si pide password o entra, la DB está funcionando
+netstat -tlnp | grep 3306     # el puerto 3306 (MySQL/MariaDB) debe estar LISTEN
+```
+
+### Problemas Encontrados y Cómo se Resolvieron
+
+**Problema 1 — `systemctl start mariadb` falla con "control process exited with error code".**
+
+Diagnóstico: `journalctl -xe -u mariadb` mostró:
+```
+mariadb-prepare-db-dir[37601]: Database MariaDB is not initialized.
+mariadb-prepare-db-dir[37601]: Make sure the /var/lib/mysql directory is initialized.
+```
+Causa: el datadir `/var/lib/mysql` **estaba vacío y sin inicializar** (las tablas del sistema no existían), y además tenía dueño incorrecto `root:mysql`.
+
+Fix aplicado:
+```bash
+ls -la /var/lib/mysql/                 # confirmar que está vacío (total 12, sin archivos)
+chown -R mysql:mysql /var/lib/mysql    # corregir dueño
+mariadb-install-db --user=mysql --datadir=/var/lib/mysql   # inicializar la base
+```
+
+**Problema 2 — Tras inicializar, el start sigue fallando.**
+
+Diagnóstico: nuevo log de `journalctl -xe -u mariadb`:
+```
+mariadb-prepare-db-dir[23091]: Database MariaDB is not initialized, but the directory /var/lib/mysql is not empty, so initialization cannot be done.
+```
+Causa: la inicialización había quedado **incompleta** (dejó archivos sueltos pero no el system db), y `mariadb-prepare-db-dir` (el paso previo de systemd que valida/crea el datadir) **se rehúsa a inicializar sobre un directorio no vacío**. Como el datadir original estaba vacío, esos archivos no eran datos, así que se borraron y se reinicializó limpio.
+
+Fix aplicado:
+```bash
+rm -rf /var/lib/mysql/*                 # limpiar restos de la init incompleta
+mariadb-install-db --user=mysql --datadir=/var/lib/mysql
+chown -R mysql:mysql /var/lib/mysql
+systemctl start mariadb                 # ✅ esta vez arrancó
+systemctl status mariadb                # active (running)
+```
+
+### Notas / Troubleshooting
+
+- `systemctl start mariadb` dispara un paso previo (`ExecStartPre=mariadb-prepare-db-dir`) que valida/inicializa `/var/lib/mysql`. Si ese paso falla, el servicio nunca arranca — **leer el journal en vez de asumir**.
+- `journalctl -xe -u <servicio>` es la herramienta #1 para diagnosticar: muestra la línea exacta que falló.
+- `mariadb-install-db --user=mysql --datadir=<ruta>` crea las tablas del sistema (equivalente de MariaDB a `mysql_install_db`). Se ejecuta **antes** del primer arranque cuando el datadir está vacío.
+- El datadir debe tener dueño `mysql:mysql` y permisos correctos; si quedó en `root:mysql` (o `root:root`), el prepare falla.
+- La regla del prepare: si el datadir **no está inicializado** pero **no está vacío**, se niega a seguir. Si no hay datos reales, la solución segura es `rm -rf /var/lib/mysql/*` y re-inicializar.
+- `systemctl start` lo levanta **solo esta vez**; `systemctl enable` lo deja configurado para arrancar **en cada boot**. En labs suelen pedir ambos.
+- Si sigue caído tras el start, revisar logs con `journalctl -u mariadb` para ver el motivo real (config corrupta, falta espacio, socket bloqueado, SELinux en enforcing, etc.).
+- El puerto por defecto de MariaDB/MySQL es **3306**; en el lab entero el firewall normalmente no bloquea, pero si no escucha, chequear esa parte.

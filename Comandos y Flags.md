@@ -45,10 +45,24 @@
 | `vi` | — | Editor de texto de línea de comandos. Usado para editar archivos de configuración. Dentro de vi: `/texto` para buscar, `i` para insertar, `:wq` para guardar y salir. |
 | `systemctl restart sshd` | — | Reinicia el servicio SSH daemon, aplicando cambios del archivo de configuración. |
 | `systemctl status sshd` | — | Muestra el estado actual del servicio SSH (activo/inactivo). |
+| `systemctl start <servicio>` | — | Inicia un servicio **solo por esta vez** (no persiste tras reboot). |
+| `systemctl stop <servicio>` | — | Detiene un servicio en ejecución. |
+| `systemctl enable <servicio>` | — | Registra el servicio para que **arranque automáticamente** en cada boot. |
+| `systemctl is-enabled <servicio>` | — | Muestra si el servicio está habilitado al arranque: `enabled` / `disabled`. |
+| `systemctl list-units` | — | Lista las unidades (servicios) cargadas; útil para encontrar el nombre exacto corriendo `grep -i mari`. |
+| `journalctl` | `-u mariadb` | Muestra los logs del servicio indicado con `-u` (unit). Clave para ver por qué falló un servicio. |
+| `journalctl` | `-xe` | Muestra el log del servicio en formato extendido, resaltando la última información. Combinar con `-u`. |
 | `sshd -T` | — | Muestra la configuración **efectiva** del servidor SSH ya parseada (sin comentarios). Útil para verificar que los cambios de `sshd_config` se aplicaron. |
 | `sshd -T \| grep permitrootlogin` | — | Filtra el valor de la directiva `PermitRootLogin` de la configuración SSH. |
 | `sed` | `-i` | Editor de flujos de texto. `-i` edita el archivo **in-place** (sobre el mismo archivo, sin crear temporal). |
 | `sed 's/^#\?Patrón.*/nuevo/'` | — | Reemplaza el patrón con el texto nuevo. `s/antiguo/nuevo/` es el formato de sustitución. |
+| `netstat` | `-tlnp` | Lista conexiones y puertos en escucha. `-t`=TCP, `-l`=listening, `-n`=sin resolución de nombres, `-p`=muestra el proceso dueño del socket. Útil para confirmar que un servicio (ej. 3306) escucha. |
+| `mysql` | `-u root -p` | Cliente MySQL/MariaDB. `-u` usuario, `-p` pide contraseña. Entrar con éxito = la DB responde. |
+| `mariadb-install-db` | `--user=mysql` | Inicializa el datadir de MariaDB (crea las tablas del sistema). `--user` indica el usuario del sistema que será dueño de los archivos. |
+| `mariadb-install-db` | `--datadir=/var/lib/mysql` | Especifica la ruta del directorio de datos a inicializar. |
+| `rm` | `-rf /var/lib/mysql/*` | Borra archivos de forma recursiva y forzada. `-r` = recursivo (directorios), `-f` = sin preguntar. Usado para limpiar restos de una init incompleta (solo si el datadir no tiene datos reales). |
+| `chown` | `-R` | Cambia el dueño de un archivo/directorio. `-R` lo aplica **recursivamente** a todo el contenido. Puede indicar `usuario:grupo` (ej. `chown -R mysql:mysql /var/lib/mysql`). |
+| `ls -la` | — | Lista archivos en formato largo **incluyendo ocultos** (`.`). `-l` formato largo, `-a` todos (all). Útil para ver el contenido real de un directorio como `/var/lib/mysql`. |
 
 ## SELinux
 

@@ -75,6 +75,72 @@ useradd -G nautilus_developers kano            # solo si el user NO existe todav
 
 ---
 
+## Tarea 3: Create Non-Interactive Shell User siva (App Server 2)
+
+### Requerimiento
+
+To accommodate the backup agent tool's specifications, the system admin team at xFusionCorp Industries requires the creation of a user with a non-interactive shell. Here's your task:
+
+Create a user named `siva` with a non-interactive shell on **App Server 2**.
+
+**Nota:** Un "non-interactive shell" significa que el usuario **no podrá iniciar sesión interactivamente por SSH** (no tendrá un shell de login/terminal). Es típico para cuentas de servicio/agentes (como un backup agent) que solo ejecutan procesos en segundo plano. En lugar de `/bin/bash`, su shell se setea a `/sbin/nologin` (o `/bin/false`).
+
+**Datos de infraestructura (Stratos Datacenter):**
+- App Server 1 → `stapp01` (user: tony) — NO tocar en esta tarea
+- App Server 2 → `stapp02` (user: steve) — **aquí se crea `siva`**
+- App Server 3 → `stapp03` (user: banner) — NO tocar en esta tarea
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al App Server 2 (stapp02)
+ssh steve@stapp02
+
+# 2. Bajar privilegio a root (o prefijar sudo a cada comando)
+sudo su -
+
+# 3. Crear el usuario siva con shell NO interactivo
+useradd -s /sbin/nologin siva
+
+# 4. Verificar: el shell debe estar seteado a /sbin/nologin
+getent passwd siva
+
+# Forma alternativa de verificación (campos de más a menos: user:x:UID:GID:desc:home:shell)
+grep siva /etc/passwd        # esperado: siva:x:UID:GID::/home/siva:/sbin/nologin
+```
+
+**Validación rápida (opcional):** intentar un login interactivo debería ser rechazado:
+
+```bash
+su - siva                   # deja de funcionar como login normal
+# "This account is currently not available."  -> el shell nologin lo bloquea
+```
+
+### Alternativas
+
+```bash
+# a) Con /bin/false en vez de /sbin/nologin (ambos son "no interactivos"):
+useradd -s /bin/false siva
+
+# b) Con sudo directo (sin hacer su -):
+sudo useradd -s /sbin/nologin siva
+sudo grep siva /etc/passwd
+
+# c) Si el usuario YA existe y solo hay que cambiarle el shell a no interactivo:
+usermod -s /sbin/nologin siva
+```
+
+### Notas / Troubleshooting & Verificación
+
+- **`/sbin/nologin` vs `/bin/false`:** Ambos impiden el login interactivo (solo diferencias cosméticas al intentar conectar). En los labs de KodeKloud **se espera `/sbin/nologin`** como estándar para cuentas de servicio.
+- **Verificar el shell correcto con `getent passwd siva`:** el último campo de cada línea de `/etc/passwd` es el shell del usuario. Si aparece `bash`, `sh`, `zsh`, etc., el requisito **no** está cumplido.
+- **No hace falta `-m` (crear home)** salvo que el backup agent requiera directorio home; el requisito del lab es solamente el **shell no interactivo**.
+- Esta tarea es **solo en stapp02** (App Server 2). No tocar stapp01 ni stapp03.
+- El usuario `siva` es un usuario "de sistema/servicio": su shell nologin le permite **ejecutar procesos** (el backup agent) pero **no ingresar por una consola/SSH interactiva**.
+- Si el lab ya tuviera al usuario creado sin shell no interactivo, usar `usermod -s /sbin/nologin siva` en vez de `useradd` (evita el error "user already exists").
+
+---
+
 ## Glosario de comandos y flags (en construcción)
 
 | Comando | Flag | Descripción |
@@ -86,3 +152,7 @@ useradd -G nautilus_developers kano            # solo si el user NO existe todav
 | `getent` | | Consulta bases de datos del sistema (passwd, group, …). `getent group X` muestra GID y miembros. |
 | `groups` | | Lista los grupos del usuario. `groups <user>` para otro usuario. |
 | `id` | | Muestra UID, GID principal y grupos secundarios del usuario actual (o del indicado). |
+| `useradd` | `-s` | Sets el shell de login del usuario (shell personalizado). Ej. `-s /sbin/nologin` para cuenta no interactiva. |
+| `usermod` | `-s` | Cambia el shell de login de un usuario **existente**. Ej. `usermod -s /sbin/nologin siva`. |
+| `grep` | | Filtra líneas que contengan un patrón. `grep siva /etc/passwd` muestra la entrada del usuario. |
+| `/etc/passwd` | | Archivo de cuentas: `user:x:UID:GID:desc:home:shell`. El **último campo es el shell** → es donde se valida el login interactivo. |

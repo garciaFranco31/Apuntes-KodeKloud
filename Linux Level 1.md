@@ -141,18 +141,75 @@ usermod -s /sbin/nologin siva
 
 ---
 
+## Tarea 4: Create User Without Home Directory javed (App Server 1)
+
+### Requerimiento
+
+In response to the latest tool implementation at xFusionCorp Industries, the system admins require the creation of a service user account. Here are the specifics:
+
+Create a user named `javed` in **App Server 1** without a home directory.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+**Datos de infraestructura (Stratos Datacenter):**
+- App Server 1 → `stapp01` (user: tony) — **aquí se crea `javed`**
+- App Server 2 → `stapp02` (user: steve) — NO tocar en esta tarea
+- App Server 3 → `stapp03` (user: banner) — NO tocar en esta tarea
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al App Server 1 (stapp01)
+ssh tony@stapp01
+
+# 2. Bajar privilegio a root (o prefijar sudo a cada comando)
+sudo su -
+
+# 3. Crear el usuario javed sin directorio home
+useradd -M javed
+
+# 4. Verificar que el usuario fue creado pero NO tiene directorio home en /home/javed
+getent passwd javed          # Muestra la entrada en /etc/passwd
+ls -ld /home/javed           # Debe devolver "No such file or directory"
+```
+
+### Alternativas
+
+```bash
+# a) Con el flag largo --no-create-home:
+useradd --no-create-home javed
+
+# b) Ejecución directa con sudo (sin su -):
+sudo useradd -M javed
+sudo ls -ld /home/javed
+
+# c) Si el usuario ya fue creado con home por error, eliminarlo y volver a crearlo:
+# sudo userdel -r javed && sudo useradd -M javed
+```
+
+### Notas / Troubleshooting & Verificación
+
+- **Flag `-M` (`--no-create-home`):** Le indica a `useradd` de forma explícita que **no** cree el directorio personal (home directory) del usuario, independientemente de la configuración global del sistema (`/etc/login.defs`).
+- **Ruta en `/etc/passwd` vs. Directorio físico:** Es normal que en `/etc/passwd` aparezca `/home/javed` en el sexto campo (ya que es la ruta por defecto que asigna el sistema), pero el directorio `/home/javed` **no existe físicamente** en el disco (`ls -ld /home/javed` dará `No such file or directory`).
+- **Uso habitual en SysAdmin/DevOps:** Se utiliza para cuentas de servicio o procesos automatizados que no requieren almacenar archivos personales, reduciendo el consumo de disco y mejorando la seguridad.
+- **Servidor correcto:** La tarea es exclusiva para **App Server 1 (`stapp01`)**. No aplicar en `stapp02` ni `stapp03`.
+
+---
+
 ## Glosario de comandos y flags (en construcción)
 
 | Comando | Flag | Descripción |
 |---|---|---|
 | `groupadd` | | Crea un grupo nuevo. Si ya existe: "already exists" (no rompe). |
 | `useradd` | | Crea un usuario nuevo (sin home si no se pasa `-m`; en el lab basta con que exista). |
+| `useradd` | `-M` / `--no-create-home` | Evita la creación del directorio personal (`/home/username`) del usuario. |
+| `useradd` | `-s` | Setea el shell de login del usuario (shell personalizado). Ej. `-s /sbin/nologin` para cuenta no interactiva. |
 | `usermod` | `-a` | Append: agrega grupos **sin reemplazar** los existentes (obligatorio con `-G`). |
-| `usermod` | `-G` | Asigna grupos **secundarios** (secundary groups). Sin `-a` reemplaza todos. |
+| `usermod` | `-G` | Asigna grupos **secundarios** (secondary groups). Sin `-a` reemplaza todos. |
+| `usermod` | `-s` | Cambia el shell de login de un usuario **existente**. Ej. `usermod -s /sbin/nologin siva`. |
 | `getent` | | Consulta bases de datos del sistema (passwd, group, …). `getent group X` muestra GID y miembros. |
 | `groups` | | Lista los grupos del usuario. `groups <user>` para otro usuario. |
 | `id` | | Muestra UID, GID principal y grupos secundarios del usuario actual (o del indicado). |
-| `useradd` | `-s` | Sets el shell de login del usuario (shell personalizado). Ej. `-s /sbin/nologin` para cuenta no interactiva. |
-| `usermod` | `-s` | Cambia el shell de login de un usuario **existente**. Ej. `usermod -s /sbin/nologin siva`. |
 | `grep` | | Filtra líneas que contengan un patrón. `grep siva /etc/passwd` muestra la entrada del usuario. |
-| `/etc/passwd` | | Archivo de cuentas: `user:x:UID:GID:desc:home:shell`. El **último campo es el shell** → es donde se valida el login interactivo. |
+| `ls` | `-ld` | Muestra la información y permisos de un directorio sin listar su contenido interno. |
+| `/etc/passwd` | | Archivo de cuentas: `user:x:UID:GID:desc:home:shell`. El sexto campo es la ruta home asignada. |

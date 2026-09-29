@@ -196,17 +196,74 @@ sudo ls -ld /home/javed
 
 ---
 
+## Tarea 5: Create Temporary User with Expiry Date james (App Server 3)
+
+### Requerimiento
+
+As part of the temporary assignment to the Nautilus project, a developer named james requires access for a limited duration. To ensure smooth access management, a temporary user account with an expiry date is needed. Here's what you need to do:
+
+Create a user named `james` on **App Server 3** in Stratos Datacenter. Set the expiry date to `2027-02-17`, ensuring the user is created in lowercase as per standard protocol.
+
+**Note:** You can find the infrastructure details by clicking on the "Details of all Users and Servers" button on the top-right section of the page.
+
+**Datos de infraestructura (Stratos Datacenter):**
+- App Server 1 → `stapp01` (user: tony) — NO tocar en esta tarea
+- App Server 2 → `stapp02` (user: steve) — NO tocar en esta tarea
+- App Server 3 → `stapp03` (user: banner) — **aquí se crea `james`**
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al App Server 3 (stapp03)
+ssh banner@stapp03
+
+# 2. Bajar privilegio a root (o prefijar sudo a cada comando)
+sudo su -
+
+# 3. Crear el usuario james con fecha de expiración 2027-02-17
+useradd -e 2027-02-17 james
+
+# 4. Verificar la fecha de expiración asignada al usuario
+chage -l james
+```
+
+### Alternativas
+
+```bash
+# a) Con el flag largo --expiredate:
+useradd --expiredate 2027-02-17 james
+
+# b) Ejecución directa con sudo (sin su -):
+sudo useradd -e 2027-02-17 james
+sudo chage -l james
+
+# c) Si el usuario YA existe y solo hay que modificar/asignar la fecha de expiración:
+usermod -e 2027-02-17 james
+```
+
+### Notas / Troubleshooting & Verificación
+
+- **Flag `-e` (`--expiredate YYYY-MM-DD`):** Define la fecha en la que la cuenta del usuario será desactivada automáticamente por el sistema. El formato debe ser estrictamente `YYYY-MM-DD`.
+- **Verificación con `chage -l <user>`:** El comando `chage -l james` (change age) permite consultar la caducidad de la cuenta. Debe mostrar en la línea `Account expires`: `Feb 17, 2027`.
+- **Verificación en `/etc/shadow`:** La fecha de expiración se almacena en el octavo campo del archivo `/etc/shadow` como la cantidad de días desde el 1 de enero de 1970 (Epoch).
+- **Servidor correcto:** La tarea es exclusiva para **App Server 3 (`stapp03`)**. No aplicar en `stapp01` ni `stapp02`.
+
+---
+
 ## Glosario de comandos y flags (en construcción)
 
 | Comando | Flag | Descripción |
 |---|---|---|
 | `groupadd` | | Crea un grupo nuevo. Si ya existe: "already exists" (no rompe). |
 | `useradd` | | Crea un usuario nuevo (sin home si no se pasa `-m`; en el lab basta con que exista). |
+| `useradd` | `-e` / `--expiredate` | Setea la fecha de caducidad/expiración de la cuenta de usuario (`YYYY-MM-DD`). |
 | `useradd` | `-M` / `--no-create-home` | Evita la creación del directorio personal (`/home/username`) del usuario. |
 | `useradd` | `-s` | Setea el shell de login del usuario (shell personalizado). Ej. `-s /sbin/nologin` para cuenta no interactiva. |
 | `usermod` | `-a` | Append: agrega grupos **sin reemplazar** los existentes (obligatorio con `-G`). |
+| `usermod` | `-e` | Cambia o asigna la fecha de expiración a un usuario **existente**. |
 | `usermod` | `-G` | Asigna grupos **secundarios** (secondary groups). Sin `-a` reemplaza todos. |
 | `usermod` | `-s` | Cambia el shell de login de un usuario **existente**. Ej. `usermod -s /sbin/nologin siva`. |
+| `chage` | `-l` | Muestra la información de expiración de la cuenta y caducidad de contraseñas. |
 | `getent` | | Consulta bases de datos del sistema (passwd, group, …). `getent group X` muestra GID y miembros. |
 | `groups` | | Lista los grupos del usuario. `groups <user>` para otro usuario. |
 | `id` | | Muestra UID, GID principal y grupos secundarios del usuario actual (o del indicado). |

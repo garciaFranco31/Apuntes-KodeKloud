@@ -250,6 +250,69 @@ usermod -e 2027-02-17 james
 
 ---
 
+## Tarea 6: Filtrar y Reubicar Datos de Usuario Preservando la Estructura de Directorios (App Server 1)
+
+### Requerimiento
+
+Debido a una mezcla accidental de datos, la información de varios usuarios se combinó involuntariamente en el servidor **App Server 1** de Nautilus en la ruta `/home/usersdata` por el equipo de soporte de producción de Nautilus en el Datacenter Stratos. Para solucionar esto, los datos de un usuario específico deben ser filtrados y reubicados. Aquí están los detalles:
+
+Ubica todos los archivos (excluyendo directorios) que pertenezcan al usuario `ravi` dentro del directorio `/home/usersdata` en el **App Server 1**. Copia estos archivos preservando la estructura de directorios hacia el directorio `/ecommerce`.
+
+**Datos de infraestructura (Stratos Datacenter):**
+- App Server 1 → `stapp01` (user: `tony`) — **aquí se realiza la tarea**
+- App Server 2 → `stapp02` (user: `steve`) — NO tocar en esta tarea
+- App Server 3 → `stapp03` (user: `banner`) — NO tocar en esta tarea
+
+### Resolución
+
+```bash
+# 1. Acceder por SSH al App Server 1 (stapp01)
+ssh tony@stapp01
+
+# 2. Bajar privilegio a root (para tener permisos de lectura en todos los datos y escritura en /ecommerce)
+sudo su -
+
+# 3. (Opcional) Crear el directorio de destino si no existe
+mkdir -p /ecommerce
+
+# 4. Buscar los archivos del usuario ravi y copiarlos manteniendo la estructura de directorios
+find /home/usersdata -type f -user ravi -exec cp --parents {} /ecommerce \;
+
+# 5. Verificar que los archivos se copiaron correctamente
+# a) Contar archivos de origen vs destino:
+find /home/usersdata -type f -user ravi | wc -l
+find /ecommerce -type f | wc -l
+
+# b) Listar la estructura replicada en /ecommerce:
+find /ecommerce -type f
+ls -laR /ecommerce
+```
+
+### Alternativas
+
+```bash
+# a) Usando cp con -t (target-directory) y + (procesa múltiples archivos a la vez, más eficiente):
+find /home/usersdata -type f -user ravi -exec cp --parents -t /ecommerce {} +
+
+# b) Con cpio en modo pass-through (p: pass-through, d: crea directorios, m: mantiene timestamps):
+find /home/usersdata -type f -user ravi | cpio -pdm /ecommerce
+
+# c) Ejecución directa con sudo en una sola línea (sin su -):
+sudo find /home/usersdata -type f -user ravi -exec cp --parents {} /ecommerce \;
+```
+
+### Notas / Troubleshooting & Verificación
+
+- **`-type f` es obligatorio:** El enunciado especifica expresamente *(excluding directories)*. Si omitimos `-type f`, `find` también encontraría directorios propiedad de `ravi` e intentaría copiarlos completos con sus contenidos (incluyendo archivos de otros usuarios).
+- **Flag `--parents` de `cp`:** Recrea toda la jerarquía de carpetas padre en el directorio de destino (`/ecommerce/home/usersdata/...`). Sin este flag, `cp` colocaría todos los archivos aplanados en la raíz de `/ecommerce`, perdiendo la estructura de subcarpetas.
+- **Sintaxis de `-exec ... {} \;`:**
+  - `{}`: Es el placeholder donde `find` inserta la ruta del archivo encontrado.
+  - `\;`: Indica el fin del comando a ejecutar por cada archivo individualmente.
+- **Privilegios de Root:** Es indispensable usar `sudo su -` (o `sudo`), ya que los archivos pertenecen a otro usuario (`ravi`) y el directorio `/ecommerce` suele ser propiedad de `root`.
+- **Servidor correcto:** La tarea es exclusiva para **App Server 1 (`stapp01`)**. No tocar `stapp02` ni `stapp03`.
+
+---
+
 ## Glosario de comandos y flags (en construcción)
 
 | Comando | Flag | Descripción |
@@ -269,4 +332,13 @@ usermod -e 2027-02-17 james
 | `id` | | Muestra UID, GID principal y grupos secundarios del usuario actual (o del indicado). |
 | `grep` | | Filtra líneas que contengan un patrón. `grep siva /etc/passwd` muestra la entrada del usuario. |
 | `ls` | `-ld` | Muestra la información y permisos de un directorio sin listar su contenido interno. |
+| `ls` | `-laR` | Lista todos los archivos, con detalles y de forma recursiva por subdirectorios. |
+| `find` | | Busca archivos y directorios en una jerarquía según criterios especificados. |
+| `find` | `-type f` | Filtra únicamente elementos de tipo archivo regular (excluye directorios, enlaces, etc.). |
+| `find` | `-user <nombre>` | Filtra elementos cuyo propietario (owner) sea el usuario especificado. |
+| `find` | `-exec <cmd> {} \;` | Ejecuta `<cmd>` sobre cada elemento encontrado (`{}` representa el archivo). |
+| `cp` | `--parents` | Añade la ruta completa del archivo origen al directorio de destino, recreando las carpetas intermedias. |
+| `cp` | `-t` / `--target-directory` | Especifica el directorio de destino antes de los archivos de origen (ideal para `+` en `find`). |
+| `cpio` | `-pdm` | Modo pass-through (`-p`), creando directorios intermedios (`-d`) y preservando timestamps (`-m`). |
+| `wc` | `-l` | Cuenta la cantidad de líneas en la entrada/salida (útil para contar archivos). |
 | `/etc/passwd` | | Archivo de cuentas: `user:x:UID:GID:desc:home:shell`. El sexto campo es la ruta home asignada. |
